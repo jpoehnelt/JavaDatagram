@@ -1,9 +1,8 @@
 /*
- * CS 460 Number Guessing Project
+ * CS 460 Datagram Project
  * Authors: Justin Poehnelt, Matt Siewierski
  */
-package datagram;
-
+package client;
 
 import java.util.Arrays;
 import java.net.*;
@@ -33,13 +32,16 @@ public class Client implements Runnable {
             return;
         }
 
-        String test = "Hello world.";
+        String test = "www.google.com";
         byte[] buffer = new byte[512];
-        buffer = Arrays.copyOf(test.getBytes(), buffer.length);
+        buffer[0] = (byte) 5;
+        
+        System.arraycopy(test.getBytes(), 0, buffer, 1, test.getBytes().length);
+        //buffer = Arrays.copyOf(test.getBytes(), buffer.length);
 
         // Get the address
         try {
-            address =  InetAddress.getByName(this.host);
+            address = InetAddress.getByName(this.host);
         } catch (UnknownHostException e) {
             System.out.println("Unknown host!");
             return;
@@ -59,12 +61,17 @@ public class Client implements Runnable {
         try {
             socket.receive(packet);
 
-            System.out.println(new String(packet.getData()));
+            System.out.println((int) packet.getData()[0]);
+            byte[] incData = new byte[512];
+            System.arraycopy(buffer, 1, incData, 0, buffer.length-1);
+            System.out.println(new String(incData));
+            
+            System.out.println(packet.getAddress());
+            System.out.println(packet.getPort());
 
         } catch (IOException e) {
             System.out.println("Failed to receive packet");
         }
-
     }
 
     /**
@@ -111,7 +118,4 @@ public class Client implements Runnable {
 
 
     }
-
-
-
 }
