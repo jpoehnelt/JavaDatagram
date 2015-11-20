@@ -2,28 +2,19 @@
  * CS 460 Datagram Project
  * Authors: Justin Poehnelt, Matt Siewierski
  */
-package client;
+package datagram;
 
 import java.util.Arrays;
 import java.net.*;
 import java.io.*;
 
-public class Client implements Runnable {
-    private final String host;
-    private final int port;
+public class Client {
 
-    public Client(String host, int port) {
-        this.host = host;
-        this.port = port;
-    }
 
-    /**
-     * The run method for making multiple clients via threads.
-     */
-    @Override
-    public void run() {
+    public static void run(String host, int port, String service, String arg) {
         DatagramSocket socket;
         InetAddress address;
+        byte buffer[] = new byte[512];
 
         try {
             socket = new DatagramSocket();
@@ -32,42 +23,52 @@ public class Client implements Runnable {
             return;
         }
 
-        String test = "www.google.com";
-        byte[] buffer = new byte[512];
-        buffer[0] = (byte) 5;
-        
-        System.arraycopy(test.getBytes(), 0, buffer, 1, test.getBytes().length);
-        //buffer = Arrays.copyOf(test.getBytes(), buffer.length);
-
         // Get the address
         try {
-            address = InetAddress.getByName(this.host);
+            address = InetAddress.getByName(host);
         } catch (UnknownHostException e) {
             System.out.println("Unknown host!");
             return;
         }
 
+        // build buffer for packet
+
+        if (service.equals("echo")) {
+            buffer[0] = (byte) 1;
+            System.arraycopy(arg.getBytes(), 0, buffer, 1, arg.length());
+        } else if (service.equals("time")) { // get time
+            buffer[0] = (byte) 3;
+        } else if (service.equals("lookup")) { // dns lookup
+            buffer[0] = (byte) 5;
+            System.arraycopy(arg.getBytes(), 0, buffer, 1, arg.length());
+        } else {
+            return;
+        }
+
         // Create a packet to receive data into the buffer
-        DatagramPacket packet = new DatagramPacket(buffer, 0, buffer.length, address, this.port);
+        DatagramPacket packet = new DatagramPacket(buffer, 0, buffer.length, address, port);
+
+        System.out.println("");
 
         try {
             socket.send(packet);
+            System.out.println(String.format("Sent packet to: %s:%d", packet.getAddress(), packet.getPort()));
+            System.out.println(String.format("Packet Type: %d", (int) buffer[0]));
+            System.out.println(String.format("Data: %s", new String(buffer)));
         } catch (IOException e) {
             System.out.println("Could not send socket.");
         }
 
         // Wait for response packet
-        System.out.println("Waiting for response.");
+        System.out.println("");
+        System.out.println("Waiting for response...");
+        System.out.println("");
+
         try {
             socket.receive(packet);
-
-            System.out.println((int) packet.getData()[0]);
-            byte[] incData = new byte[512];
-            System.arraycopy(buffer, 1, incData, 0, buffer.length-1);
-            System.out.println(new String(incData));
-            
-            System.out.println(packet.getAddress());
-            System.out.println(packet.getPort());
+            System.out.println(String.format("Received packet from: %s:%d", packet.getAddress(), packet.getPort()));
+            System.out.println(String.format("Packet Type: %d", (int) buffer[0]));
+            System.out.println(String.format("Response: %s", new String(buffer)));
 
         } catch (IOException e) {
             System.out.println("Failed to receive packet");
@@ -80,42 +81,18 @@ public class Client implements Runnable {
      * @param args
      */
     public static void main(String[] args) {
-        String host;
-        int port, thread_count;
 
-        // try to get the arguements
-        try {
-            host = args[0];
-        } catch (ArrayIndexOutOfBoundsException e) {
-            host = "localhost";
-        }
+        // run service
+        System.out.println("--------------------");
+        System.out.println("Testing Echo Service");
+        run("localhost", 8989, "echo", "Hello World");
 
-        try {
-            port = Integer.parseInt(args[1]);
-        } catch (ArrayIndexOutOfBoundsException e) {
-            port = 8989;
-        }
+        System.out.println("--------------------");
+        System.out.println("Testing Time Service");
+        run("localhost", 8989, "time", "");
 
-        try {
-            thread_count = Integer.parseInt(args[2]);
-        } catch (ArrayIndexOutOfBoundsException e) {
-            thread_count = 1;
-        }
-
-        // create threads to test server
-        for (int i = 0; i < thread_count; i++) {
-            new Thread(new Client(host, port)).start();
-        }
-
-    }
-
-    /**
-     * Talk to a number guessing server.
-     *
-     * @param socket
-     */
-    private void send(DatagramSocket socket) {
-
-
+        System.out.println("--------------------");
+        System.out.println("Testing Lookup Service");
+        run("localhost", 8989, "lookup", "google.com");
     }
 }
